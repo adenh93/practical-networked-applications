@@ -60,7 +60,7 @@ impl KvStore {
     /// assert_eq!(foo, String::from("other"));
     /// ```
     pub fn set(&mut self, key: &str, value: &str) {
-        *self.store.entry(key.into()).or_insert(String::new()) = value.into()
+        self.store.insert(key.into(), value.into());
     }
 
     /// Retrieves a value from the store corresponding to the given `key`.
