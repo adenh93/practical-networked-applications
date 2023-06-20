@@ -1,0 +1,8 @@
+[package]
+name = "kvs"
+version = "0.1.0"
+authors = ["Aden Herold"]
+description = "A key-value store"
+edition = "2021"
+
+[dependencies]
