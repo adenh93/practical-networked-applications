@@ -6,3 +6,4 @@ description = "A key-value store"
 edition = "2021"
 
 [dependencies]
+clap = { version = "4.3.4", features = ["derive"] }
