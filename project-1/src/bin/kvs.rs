@@ -1,3 +1,7 @@
+use clap::Parser;
+use kvs::Args;
+
 fn main() {
-    println!("Hello, world!");
+    let args = Args::parse();
+    println!("{args:?}");
 }
