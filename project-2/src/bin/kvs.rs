@@ -1,7 +1,7 @@
 use clap::Parser;
-use kvs::{Args, Command};
+use kvs::{Args, Command, Result};
 
-fn main() {
+fn main() -> Result<()> {
     let args = Args::parse();
 
     match args.command {

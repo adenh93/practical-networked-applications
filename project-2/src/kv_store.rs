@@ -1,6 +1,10 @@
 use std::{collections::HashMap, path::Path};
+use thiserror::Error;
 
-pub type Result<T> = std::result::Result<T, ()>;
+#[derive(Error, Debug)]
+pub enum KvStoreError { }
+
+pub type Result<T> = std::result::Result<T, KvStoreError>;
 
 #[derive(Debug)]
 pub struct KvStore {
