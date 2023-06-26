@@ -1,119 +1,93 @@
-use std::{collections::HashMap, path::Path};
+use crate::Frame;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::fs::{File, OpenOptions};
+use std::io::{self, BufReader, BufWriter, Write};
+use std::path::Path;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum KvStoreError { }
+pub enum KvStoreError {
+    #[error("Key not found")]
+    KeyNotFound,
+    #[error(transparent)]
+    OpenLogError(#[from] io::Error),
+    #[error("Failed to serialize Command")]
+    SerializationFailure,
+    #[error("Failed to deserialize Command")]
+    DeserializationFailure,
+}
 
 pub type Result<T> = std::result::Result<T, KvStoreError>;
 
+#[derive(Serialize, Deserialize, Debug)]
+enum Command {
+    Set(String, String),
+    Rm(String),
+}
+
 #[derive(Debug)]
 pub struct KvStore {
-    store: HashMap<String, String>,
+    log_table: HashMap<String, String>,
+    file: File,
 }
 
 impl KvStore {
-    /// Constructs a new KvStore instance.
-    pub fn new() -> Self {
-        Self {
-            store: HashMap::new(),
-        }
-    }
-
-    /// Sets the value of a `key` to the provided `value`.
-    /// If a record already exists for `key`, it will be overwritten.
-    /// Otherwise, it will be newly inserted.
-    ///
-    /// # Arguments
-    ///
-    /// * `key`     - The key to either insert a new record against, or
-    ///               replace an existing record.
-    /// * `value`   - The value to assign to the new or existing key.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use kvs::KvStore;
-    ///
-    /// let mut kv_store = KvStore::new();
-    ///
-    /// // Inserting new record with key "foo" and value "bar".
-    /// kv_store.set("foo", "bar");
-    /// let foo = kv_store.get("foo").unwrap();
-    /// assert_eq!(foo, String::from("bar"));
-    ///
-    /// // Overwriting "foo" with "other"
-    /// kv_store.set("foo", "other");
-    /// let foo = kv_store.get("foo").unwrap();
-    /// assert_eq!(foo, String::from("other"));
-    /// ```
     pub fn set(&mut self, key: &str, value: &str) -> Result<()> {
-        self.store.insert(key.into(), value.into());
+        let command = Command::Set(key.into(), value.into());
+
+        let serialized =
+            bincode::serialize(&command).map_err(|_| KvStoreError::SerializationFailure)?;
+
+        let frame = Frame::new(&serialized).encode();
+        let mut writer = BufWriter::new(&self.file);
+        writer.write_all(&frame).unwrap();
+
+        self.log_table.insert(key.into(), value.into());
+
         Ok(())
     }
 
-    /// Retrieves a value from the store corresponding to the given `key`.
-    /// If no record exists for the given `key`, `None` will be returned.
-    ///
-    /// # Arguments
-    ///
-    /// * `key` - The key corresponding to a record to retrieve.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use kvs::KvStore;
-    ///
-    /// let mut kv_store = KvStore::new();
-    ///
-    /// kv_store.set("foo", "bar");
-    ///
-    /// let foo = kv_store.get("foo");
-    /// let bar = kv_store.get("bar");
-    ///
-    /// assert!(foo.is_some());
-    /// assert!(bar.is_none());
-    /// ```
-    ///
-    pub fn get(&self, key: &str) -> Result<Option<String>> {
-        Ok(self.store.get(key).map(|value| value.into()))
-    }
-
-    /// Removes a key/value pair from the store corresponding to the given `key`.
-    /// If no record exists for the given `key`, this method will have no effect.
-    ///
-    /// # Arguments
-    ///
-    /// * `key` - The key corresponding to a record to remove.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use kvs::KvStore;
-    ///
-    /// let mut kv_store = KvStore::new();
-    ///
-    /// kv_store.set("foo", "bar");
-    ///
-    /// let foo = kv_store.get("foo");
-    /// assert!(foo.is_some());
-    ///
-    /// kv_store.remove("foo");
-    ///
-    /// let foo = kv_store.get("foo");
-    /// assert!(foo.is_none());
-    /// ```
-    pub fn remove(&mut self, key: &str) -> Result<()> {
-        self.store.remove(key);
-        Ok(())
-    }
-
-    pub fn open(_path: &Path) -> Result<KvStore> {
+    pub fn get(&self, _key: &str) -> Result<Option<String>> {
         unimplemented!()
+    }
+
+    pub fn remove(&mut self, _key: &str) -> Result<()> {
+        unimplemented!()
+    }
+
+    pub fn open(path: &Path) -> Result<KvStore> {
+        let file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .read(true)
+            .open(path)
+            .map_err(|err| KvStoreError::OpenLogError(err))?;
+
+        let log_table = build_log_table(&file)?;
+
+        Ok(Self { log_table, file })
     }
 }
 
-impl Default for KvStore {
-    fn default() -> Self {
-        Self::new()
+fn build_log_table(file: &File) -> Result<HashMap<String, String>> {
+    let mut log_table = HashMap::new();
+    let mut reader = BufReader::new(file);
+
+    loop {
+        match Frame::decode(&mut reader) {
+            Ok(Some(frame)) => {
+                let command = bincode::deserialize::<Command>(&frame.bytes)
+                    .map_err(|_| KvStoreError::SerializationFailure)?;
+
+                match command {
+                    Command::Set(key, value) => log_table.insert(key, value),
+                    Command::Rm(key) => log_table.remove(&key),
+                };
+            }
+            _ => break,
+        }
     }
+
+    Ok(log_table)
 }
