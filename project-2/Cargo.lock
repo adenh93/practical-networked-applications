@@ -270,6 +270,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "kvs"
+version = "0.1.0"
+dependencies = [
+ "assert_cmd",
+ "clap",
+ "predicates",
+ "tempfile",
+ "walkdir",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.147"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -346,17 +357,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7b368fba921b0dce7e60f5e04ec15e565b3303972b42bcfde1d0713b881959eb"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "project-2"
-version = "0.1.0"
-dependencies = [
- "assert_cmd",
- "clap",
- "predicates",
- "tempfile",
- "walkdir",
 ]
 
 [[package]]
