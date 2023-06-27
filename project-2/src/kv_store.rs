@@ -1,7 +1,7 @@
 use crate::Frame;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs::{File, OpenOptions};
+use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufReader, BufWriter, Write};
 use std::path::Path;
 use thiserror::Error;
@@ -39,13 +39,7 @@ impl KvStore {
     pub fn set(&mut self, key: &str, value: &str) -> Result<()> {
         let command = Command::Set(key.into(), value.into());
 
-        let serialized =
-            bincode::serialize(&command).map_err(|_| KvStoreError::SerializationFailure)?;
-
-        let frame = Frame::new(&serialized).encode();
-        let mut writer = BufWriter::new(&self.file);
-        writer.write_all(&frame).unwrap();
-
+        self.append_to_log(command)?;
         self.log_table.insert(key.into(), value.into());
 
         Ok(())
@@ -55,21 +49,44 @@ impl KvStore {
         unimplemented!()
     }
 
-    pub fn remove(&mut self, _key: &str) -> Result<()> {
-        unimplemented!()
+    pub fn remove(&mut self, key: &str) -> Result<()> {
+        self.log_table
+            .remove(key)
+            .ok_or_else(|| KvStoreError::KeyNotFound)?;
+
+        let command = Command::Rm(key.into());
+
+        self.append_to_log(command)?;
+
+        Ok(())
     }
 
     pub fn open(path: &Path) -> Result<KvStore> {
+        let filename = path.join("logs.db");
+
+        fs::create_dir_all(path).map_err(|err| KvStoreError::OpenLogError(err))?;
+
         let file = OpenOptions::new()
             .create(true)
             .append(true)
             .read(true)
-            .open(path)
+            .open(filename)
             .map_err(|err| KvStoreError::OpenLogError(err))?;
 
         let log_table = build_log_table(&file)?;
 
         Ok(Self { log_table, file })
+    }
+
+    fn append_to_log(&mut self, command: Command) -> Result<()> {
+        let serialized =
+            bincode::serialize(&command).map_err(|_| KvStoreError::SerializationFailure)?;
+
+        let frame = Frame::new(&serialized).encode();
+        let mut writer = BufWriter::new(&self.file);
+        writer.write_all(&frame).unwrap();
+
+        Ok(())
     }
 }
 

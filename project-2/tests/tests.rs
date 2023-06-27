@@ -45,7 +45,7 @@ fn cli_rm_non_existent_key() {
         .current_dir(&temp_dir)
         .assert()
         .failure()
-        .stdout(eq("Key not found").trim());
+        .stderr(eq("Key not found").trim());
 }
 
 // `kvs set <KEY> <VALUE>` should print nothing and exit with zero.
@@ -191,7 +191,7 @@ fn get_stored_value() -> Result<()> {
 
     // Open from disk again and check persistent data.
     drop(store);
-    let mut store = KvStore::open(temp_dir.path())?;
+    let store = KvStore::open(temp_dir.path())?;
     assert_eq!(store.get("key1")?, Some("value1".to_owned()));
     assert_eq!(store.get("key2")?, Some("value2".to_owned()));
 
@@ -230,7 +230,7 @@ fn get_non_existent_value() -> Result<()> {
 
     // Open from disk again and check persistent data.
     drop(store);
-    let mut store = KvStore::open(temp_dir.path())?;
+    let store = KvStore::open(temp_dir.path())?;
     assert_eq!(store.get("key2")?, None);
 
     Ok(())
@@ -289,7 +289,7 @@ fn compaction() -> Result<()> {
 
         drop(store);
         // reopen and check content.
-        let mut store = KvStore::open(temp_dir.path())?;
+        let store = KvStore::open(temp_dir.path())?;
         for key_id in 0..1000 {
             let key = format!("key{}", key_id);
             assert_eq!(store.get(&key)?, Some(format!("{}", iter)));

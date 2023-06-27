@@ -1,17 +1,21 @@
-use std::path::Path;
-
 use clap::Parser;
-use kvs::{Args, Command, Result, KvStore};
+use kvs::{Args, Command, KvStore, Result};
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    let mut store = KvStore::open(Path::new("log.db"))?;
+    let directory = std::env::current_dir().unwrap();
+    let mut store = KvStore::open(&directory)?;
 
-    match args.command {
-        Command::Set { key, value } => store.set(&key, &value)?,
+    let result = match args.command {
+        Command::Set { key, value } => store.set(&key, &value),
         Command::Get { .. } => panic!("unimplemented"),
-        Command::Rm { .. } => panic!("unimplemented"),
-    };
+        Command::Rm { key } => store.remove(&key),
+    } ;
+
+    if let Err(e) = result {
+        eprintln!("{e}");
+        std::process::exit(1);
+    }
 
     Ok(())
 }
