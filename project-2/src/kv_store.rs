@@ -45,8 +45,8 @@ impl KvStore {
         Ok(())
     }
 
-    pub fn get(&self, _key: &str) -> Result<Option<String>> {
-        unimplemented!()
+    pub fn get(&self, key: &str) -> Result<Option<String>> {
+        Ok(self.log_table.get(key).map(|value| value.into()))
     }
 
     pub fn remove(&mut self, key: &str) -> Result<()> {
