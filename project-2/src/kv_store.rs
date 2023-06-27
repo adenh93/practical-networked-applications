@@ -12,6 +12,8 @@ pub enum KvStoreError {
     KeyNotFound,
     #[error(transparent)]
     OpenLogError(#[from] io::Error),
+    #[error("Failed to construct log table")]
+    BuildLogTableFailure,
     #[error("Failed to serialize Command")]
     SerializationFailure,
     #[error("Failed to deserialize Command")]
@@ -19,6 +21,7 @@ pub enum KvStoreError {
 }
 
 pub type Result<T> = std::result::Result<T, KvStoreError>;
+type LogTable = HashMap<String, String>;
 
 #[derive(Serialize, Deserialize, Debug)]
 enum Command {
@@ -28,7 +31,7 @@ enum Command {
 
 #[derive(Debug)]
 pub struct KvStore {
-    log_table: HashMap<String, String>,
+    log_table: LogTable,
     file: File,
 }
 
@@ -70,22 +73,24 @@ impl KvStore {
     }
 }
 
-fn build_log_table(file: &File) -> Result<HashMap<String, String>> {
+fn build_log_table(file: &File) -> Result<LogTable> {
     let mut log_table = HashMap::new();
     let mut reader = BufReader::new(file);
 
     loop {
-        match Frame::decode(&mut reader) {
-            Ok(Some(frame)) => {
+        let decoded = Frame::decode(&mut reader).map_err(|_| KvStoreError::BuildLogTableFailure)?;
+
+        match decoded {
+            Some(frame) => {
                 let command = bincode::deserialize::<Command>(&frame.bytes)
-                    .map_err(|_| KvStoreError::SerializationFailure)?;
+                    .map_err(|_| KvStoreError::DeserializationFailure)?;
 
                 match command {
                     Command::Set(key, value) => log_table.insert(key, value),
                     Command::Rm(key) => log_table.remove(&key),
                 };
             }
-            _ => break,
+            None => break,
         }
     }
 
