@@ -1,5 +1,5 @@
 use clap::Parser;
-use kvs::{Args, Command, KvStore, KvStoreError, Result};
+use kvs::{Args, Command, KvStore, Result};
 
 fn main() -> Result<()> {
     let args = Args::parse();
@@ -19,10 +19,10 @@ fn run(args: Args) -> Result<()> {
     match args.command {
         Command::Set { key, value } => store.set(&key, &value)?,
         Command::Rm { key } => store.remove(&key)?,
-        Command::Get { key } => {
-            let value = store.get(&key)?.ok_or_else(|| KvStoreError::KeyNotFound)?;
-            println!("{value}");
-        }
+        Command::Get { key } => match store.get(&key)? {
+            Some(value) => println!("{value}"),
+            None => println!("Key not found"),
+        },
     };
 
     Ok(())

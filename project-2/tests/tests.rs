@@ -31,8 +31,8 @@ fn cli_get_non_existent_key() {
         .args(&["get", "key1"])
         .current_dir(&temp_dir)
         .assert()
-        .failure()
-        .stderr(eq("Key not found").trim());
+        .success()
+        .stdout(eq("Key not found").trim());
 }
 
 // `kvs rm <KEY>` should print "Key not found" for an empty database and exit with non-zero code.
@@ -111,8 +111,8 @@ fn cli_rm_stored() -> Result<()> {
         .args(&["get", "key1"])
         .current_dir(&temp_dir)
         .assert()
-        .failure()
-        .stderr(eq("Key not found").trim());
+        .success()
+        .stdout(eq("Key not found").trim());
 
     Ok(())
 }
