@@ -1,5 +1,6 @@
+use anyhow::Result;
 use assert_cmd::prelude::*;
-use kvs::{KvStore, Result};
+use kvs::KvStore;
 use predicates::ord::eq;
 use predicates::str::{contains, is_empty, PredicateStrExt};
 use std::process::Command;
@@ -45,7 +46,7 @@ fn cli_rm_non_existent_key() {
         .current_dir(&temp_dir)
         .assert()
         .failure()
-        .stderr(eq("Key not found").trim());
+        .stderr(contains("Key not found").trim());
 }
 
 // `kvs set <KEY> <VALUE>` should print nothing and exit with zero.

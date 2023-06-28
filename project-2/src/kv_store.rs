@@ -1,28 +1,11 @@
 use crate::Frame;
+use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
-use std::io::{self, BufReader, BufWriter, Seek, SeekFrom, Write};
+use std::io::{BufReader, BufWriter, Seek, SeekFrom, Write};
 use std::path::Path;
-use thiserror::Error;
 
-#[derive(Error, Debug)]
-pub enum KvStoreError {
-    #[error("Key not found")]
-    KeyNotFound,
-    #[error(transparent)]
-    OpenLogError(#[from] io::Error),
-    #[error("Failed to read from log")]
-    ReadFromLogError,
-    #[error("Failed to construct log table")]
-    BuildLogTableError,
-    #[error("Failed to serialize Command")]
-    SerializationError,
-    #[error("Failed to deserialize Command")]
-    DeserializationError,
-}
-
-pub type Result<T> = std::result::Result<T, KvStoreError>;
 type LogTable = HashMap<String, u64>;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -59,9 +42,7 @@ impl KvStore {
     }
 
     pub fn remove(&mut self, key: &str) -> Result<()> {
-        self.log_table
-            .remove(key)
-            .ok_or_else(|| KvStoreError::KeyNotFound)?;
+        self.log_table.remove(key).context("Key not found")?;
 
         let command = Command::Rm(key.into());
 
@@ -73,14 +54,13 @@ impl KvStore {
     pub fn open(path: &Path) -> Result<KvStore> {
         let filename = path.join("logs.db");
 
-        fs::create_dir_all(path).map_err(|err| KvStoreError::OpenLogError(err))?;
+        fs::create_dir_all(path)?;
 
         let mut file = OpenOptions::new()
             .create(true)
             .append(true)
             .read(true)
-            .open(filename)
-            .map_err(|err| KvStoreError::OpenLogError(err))?;
+            .open(filename)?;
 
         let log_table = build_log_table(&mut file)?;
 
@@ -88,12 +68,14 @@ impl KvStore {
     }
 
     fn append_to_log(&self, command: Command) -> Result<()> {
-        let serialized =
-            bincode::serialize(&command).map_err(|_| KvStoreError::SerializationError)?;
+        let serialized = bincode::serialize(&command)?;
 
         let frame = Frame::new(&serialized).encode();
         let mut writer = BufWriter::new(&self.file);
-        writer.write_all(&frame).unwrap();
+
+        writer
+            .write_all(&frame)
+            .context("Failed to append serialized command to log")?;
 
         Ok(())
     }
@@ -105,15 +87,14 @@ impl KvStore {
 
         let result = match decoded {
             Some(frame) => {
-                let command = bincode::deserialize::<Command>(&frame.bytes)
-                    .map_err(|_| KvStoreError::DeserializationError)?;
+                let command = bincode::deserialize::<Command>(&frame.bytes)?;
 
                 match command {
                     Command::Set(_, value) => Ok(value),
-                    _ => Err(KvStoreError::ReadFromLogError),
+                    _ => bail!("Unable to parse command from log"),
                 }
             }
-            None => Err(KvStoreError::ReadFromLogError),
+            None => bail!("Value not found in log at offset {}", offset),
         };
 
         reader.seek(SeekFrom::End(0)).unwrap();
@@ -127,13 +108,12 @@ fn build_log_table(file: &mut File) -> Result<LogTable> {
     let mut reader = BufReader::new(file);
 
     loop {
-        let offset = reader.stream_position().map_err(|_| KvStoreError::BuildLogTableError)?;
-        let decoded = Frame::decode(&mut reader).map_err(|_| KvStoreError::BuildLogTableError)?;
+        let offset = reader.stream_position()?;
+        let decoded = Frame::decode(&mut reader)?;
 
         match decoded {
             Some(frame) => {
-                let command = bincode::deserialize::<Command>(&frame.bytes)
-                    .map_err(|_| KvStoreError::DeserializationError)?;
+                let command = bincode::deserialize::<Command>(&frame.bytes)?;
 
                 match command {
                     Command::Set(key, _) => log_table.insert(key, offset),

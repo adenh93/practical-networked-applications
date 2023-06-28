@@ -11,7 +11,7 @@ impl Frame {
             bytes: bytes.to_vec(),
         }
     }
-    pub fn encode(&self) -> Vec<u8> {
+    pub fn encode<'a>(&'a self) -> Vec<u8> {
         let len_bytes = self.bytes.len().to_le_bytes();
         [&len_bytes[..], &self.bytes[..]].concat()
     }

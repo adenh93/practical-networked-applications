@@ -1,19 +1,16 @@
+use anyhow::Result;
 use clap::Parser;
-use kvs::{Args, Command, KvStore, Result};
+use kvs::{Args, Command, KvStore};
 
 fn main() -> Result<()> {
     let args = Args::parse();
-
-    if let Err(e) = run(args) {
-        eprintln!("{e}");
-        std::process::exit(1);
-    }
+    run(args)?;
 
     Ok(())
 }
 
 fn run(args: Args) -> Result<()> {
-    let directory = std::env::current_dir().unwrap();
+    let directory = std::env::current_dir()?;
     let mut store = KvStore::open(&directory)?;
 
     match args.command {
