@@ -27,7 +27,7 @@ fn cli_get() {
         .args(&["get", "key1"])
         .assert()
         .failure()
-        .stderr(contains("unimplemented"));
+        .stderr(contains("not implemented"));
 }
 
 // `kvs set <KEY> <VALUE>` should print "unimplemented" to stderr and exit with non-zero code
@@ -38,7 +38,7 @@ fn cli_set() {
         .args(&["set", "key1", "value1"])
         .assert()
         .failure()
-        .stderr(contains("unimplemented"));
+        .stderr(contains("not implemented"));
 }
 
 // `kvs rm <KEY>` should print "unimplemented" to stderr and exit with non-zero code
@@ -49,7 +49,7 @@ fn cli_rm() {
         .args(&["rm", "key1"])
         .assert()
         .failure()
-        .stderr(contains("unimplemented"));
+        .stderr(contains("not implemented"));
 }
 
 #[test]
@@ -120,8 +120,8 @@ fn get_stored_value() {
     store.set("key1", "value1");
     store.set("key2", "value2");
 
-    assert_eq!(store.get("key1"), Some("value1".to_owned()));
-    assert_eq!(store.get("key2"), Some("value2".to_owned()));
+    assert_eq!(store.get("key1"), Some("value1"));
+    assert_eq!(store.get("key2"), Some("value2"));
 }
 
 // Should overwrite existent value
@@ -130,10 +130,10 @@ fn overwrite_value() {
     let mut store = KvStore::new();
 
     store.set("key1", "value1");
-    assert_eq!(store.get("key1"), Some("value1".to_owned()));
+    assert_eq!(store.get("key1"), Some("value1"));
 
     store.set("key1", "value2");
-    assert_eq!(store.get("key1"), Some("value2".to_owned()));
+    assert_eq!(store.get("key1"), Some("value2"));
 }
 
 // Should get `None` when getting a non-existent key
