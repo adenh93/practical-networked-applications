@@ -1,14 +1,6 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bb_2::Move;
 use std::{fs::OpenOptions, io::Seek};
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub enum Move {
-    Up(u32),
-    Right(u32),
-    Down(u32),
-    Left(u32),
-}
 
 fn main() -> Result<()> {
     let move_up = Move::Up(7);
