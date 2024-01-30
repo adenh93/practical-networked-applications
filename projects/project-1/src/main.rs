@@ -1,5 +1,5 @@
 use clap::Parser;
-use kvs::cli::Cli;
+use project_1::cli::Cli;
 
 fn main() {
     let args = Cli::parse();
