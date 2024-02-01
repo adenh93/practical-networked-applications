@@ -312,6 +312,7 @@ dependencies = [
  "bincode",
  "clap",
  "predicates",
+ "regex",
  "serde",
  "tempfile",
  "thiserror",

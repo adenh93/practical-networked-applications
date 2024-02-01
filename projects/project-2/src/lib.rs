@@ -1,4 +1,5 @@
 pub mod log;
+pub mod utils;
 
 mod cli;
 mod errors;
